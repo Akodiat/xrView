@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>xrView</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+	</head>
+	<body style="margin: 0px; position: fixed;">
+
+		<script type="importmap">
+			{
+				"imports": {
+                    "three": "https://cdn.jsdelivr.net/npm/three@0.175.0/build/three.module.js",
+                    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.175.0/examples/jsm/"
+				}
+			}
+		</script>
+
+        <article style="position: absolute">
+            <h1>xrView</h1>
+            <p>Upload one or more glTF/glb files, then click "Start XR" on a compatible XR headset</p>
+            <input id="modelInput" type="file" accept=".gltf, .glb" multiple>
+            <small>Adapted from three.js examples by Joakim Bohlin</small>
+        </article>
+
+        <canvas id="threeCanvas"></canvas>
+
+		<script src="src/main.js" type="module"></script>
+	</body>
+</html>
