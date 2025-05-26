@@ -12,7 +12,8 @@ let hand1, hand2;
 let controller1, controller2;
 let controllerGrip1, controllerGrip2;
 
-let clock, mixer;
+let clock;
+const animationMixers = [];
 
 const tmpVector1 = new THREE.Vector3();
 const tmpVector2 = new THREE.Vector3();
@@ -27,7 +28,7 @@ const scaling = {
     initialScale: 1
 };
 
-const objects = [];
+const models = [];
 
 init();
 
@@ -146,23 +147,86 @@ function init() {
     modelInput.onchange = () => {
         for (const uploadedFile of modelInput.files) {
             const url = URL.createObjectURL(uploadedFile);
-            addModel(url, loader, ()=>URL.revokeObjectURL(url));
+            addModel(url, undefined, undefined, undefined, loader, ()=>URL.revokeObjectURL(url));
         }
     };
 
-    window.addModel = url => addModel(url, loader);
+    checkUrlParameters(loader);
+
+    window.addModel = addModel;
+    window.models = models;
+    window.THREE = THREE;
+}
+
+function checkUrlParameters(loader) {
+    const paramsString = window.location.search;
+    const searchParams = new URLSearchParams(paramsString);
+    const modelPaths = searchParams.getAll("modelPath");
+    const scales = searchParams.getAll("scale").map(s=>{
+        const values = s.split(",").map(v=>parseFloat(v));
+        if (values.length === 3) {
+            return new THREE.Vector3().fromArray(values);
+        }
+        return values[0];
+    });
+    const positions = searchParams.getAll("position").map(s=>
+        new THREE.Vector3().fromArray(s.split(",").map(v=>parseFloat(v)))
+    );
+    const quaternions = searchParams.getAll("quaternion").map(s=>
+        new THREE.Quaternion().fromArray(s.split(",").map(v=>parseFloat(v)))
+    );
+
+    for (const i in modelPaths) {
+        addModel(modelPaths[i], scales[i], positions[i], quaternions[i], loader, false);
+    }
 }
 
 /**
  * Load a 3D model from path
  * @param {string} url Path to glTF 3D model
+ * @param {THREE.Vector3 | number} scale
+ * @param {THREE.Vector3} position
+ * @param {THREE.Quaternion} quaternion
  * @param {GLTFLoader} loader
+ * @param {boolean} updateUrlParams
  * @param {()=>void} callback Function to be run once the model is loaded
  */
-function addModel(url, loader=new GLTFLoader(), callback=()=>{}) {
+function addModel(
+    url,
+    scale,
+    position,
+    quaternion,
+    loader = new GLTFLoader(),
+    updateUrlParams = true,
+    callback=()=>{},
+) {
     loader.load(url, gltf => {
+        const model = gltf.scene;
 
-        gltf.scene.traverse(child => {
+        const params = new URLSearchParams(window.location.search);
+        params.append("modelPath", url);
+
+        // Apply transformations, if provided
+        if (scale !== undefined) {
+            if (typeof(scale) === "number") {
+                model.scale.set(scale, scale, scale);
+                params.append("scale", scale);
+            } else {
+                // Assume Vector3
+                model.scale.copy(scale);
+                params.append("scale", scale.toArray().join(","));
+            }
+        }
+        if (position !== undefined) {
+            model.position.copy(position);
+            params.append("position", position.toArray().join(","));
+        }
+        if (quaternion !== undefined) {
+            model.quaternion.copy(quaternion);
+            params.append("quaterinon", quaternion.toArray().join(","));
+        }
+
+        model.traverse(child => {
             if (child.isMesh) {
                 child.castShadow = true;
                 child.receiveShadow = true;
@@ -170,16 +234,24 @@ function addModel(url, loader=new GLTFLoader(), callback=()=>{}) {
             }
         });
 
-        scene.add(gltf.scene);
-        objects.push(gltf.scene);
+        scene.add(model);
+        models.push(model);
 
         if (gltf.animations.length > 0) {
-            mixer = new THREE.AnimationMixer(gltf.scene);
+            const mixer = new THREE.AnimationMixer(model);
             const action = mixer.clipAction(gltf.animations[0]);
             action.play();
+            animationMixers.push(mixer);
         }
+        console.log("Model added");
+
+        if (updateUrlParams) {
+            window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
+        }
+
         callback();
-    }, undefined, ()=>{
+    }, undefined, e => {
+        console.log("Failed to add model\n" + e);
         callback();
     });
 }
@@ -235,7 +307,7 @@ function onPinchStartLeft(event) {
     spawn.position.copy(indexTip.position);
     spawn.quaternion.copy(indexTip.quaternion);
 
-    objects.push(spawn);
+    models.push(spawn);
 
     scene.add(spawn);
 
@@ -243,10 +315,10 @@ function onPinchStartLeft(event) {
 
 function collideObject(indexTip) {
 
-    for (let i = 0; i < objects.length; i++) {
+    for (let i = 0; i < models.length; i++) {
         let collision = false;
 
-        const object = objects[i];
+        const object = models[i];
 
         object.traverse(child => {
             if (collision) {
@@ -314,10 +386,10 @@ function animate() {
         scaling.object.scale.setScalar(newScale);
     }
 
-    if (mixer) {
-        mixer.update(clock.getDelta());
+    const delta = clock.getDelta();
+    for (const mixer of animationMixers) {
+        mixer.update(delta);
     }
 
     renderer.render(scene, camera);
-
 }
