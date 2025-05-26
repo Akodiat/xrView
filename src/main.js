@@ -15,8 +15,7 @@ let controllerGrip1, controllerGrip2;
 let clock;
 const animationMixers = [];
 
-const tmpVector1 = new THREE.Vector3();
-const tmpVector2 = new THREE.Vector3();
+const tmpVector = new THREE.Vector3();
 
 let controls;
 
@@ -207,7 +206,7 @@ function addModel(
         // Apply transformations, if provided
         if (scale !== undefined) {
             if (typeof(scale) === "number") {
-                model.scale.set(scale, scale, scale);
+                model.scale.setScalar(scale);
                 params.append("scale", scale);
             } else {
                 // Assume Vector3
@@ -223,6 +222,8 @@ function addModel(
             model.quaternion.copy(quaternion);
             params.append("quaterinon", quaternion.toArray().join(","));
         }
+
+        model.scaleWhenAdded = model.scale.clone();
 
         model.traverse(child => {
             if (child.isMesh) {
@@ -270,17 +271,17 @@ function onPinchStartLeft(event) {
     if (grabbing) {
 
         const indexTip = controller.joints["index-finger-tip"];
-        const sphere = collideObject(indexTip);
+        const object = collideObject(indexTip);
 
-        if (sphere) {
+        if (object) {
 
-            const sphere2 = hand2.userData.selected;
-            console.log("sphere1", sphere, "sphere2", sphere2);
-            if (sphere === sphere2) {
+            const object2 = hand2.userData.selected;
+            console.log("sphere1", object, "sphere2", object2);
+            if (object === object2) {
 
                 scaling.active = true;
-                scaling.object = sphere;
-                scaling.initialScale = sphere.scale.x;
+                scaling.object = object;
+                scaling.initialScale = object.scale.x / object.scaleWhenAdded.x;
                 scaling.initialDistance = indexTip.position.distanceTo(hand2.joints["index-finger-tip"].position);
                 return;
 
@@ -289,11 +290,15 @@ function onPinchStartLeft(event) {
     }
 }
 
+//let boxHelper;
 function collideObject(indexTip) {
     for (const object of models) {
         const box = new THREE.Box3();
-        box.expandByObject(object);
-        if (box.containsPoint(indexTip.getWorldPosition(tmpVector1))) {
+        // scene.remove(boxHelper);
+        // boxHelper = new THREE.Box3Helper(box, 0xffff00);
+        // scene.add(boxHelper);
+        box.expandByObject(object, true);
+        if (box.containsPoint(indexTip.getWorldPosition(tmpVector))) {
             return object;
         }
     }
@@ -340,7 +345,7 @@ function animate() {
         const indexTip1Pos = hand1.joints["index-finger-tip"].position;
         const indexTip2Pos = hand2.joints["index-finger-tip"].position;
         const distance = indexTip1Pos.distanceTo(indexTip2Pos);
-        const newScale = scaling.initialScale + distance / scaling.initialDistance - 1;
+        const newScale = scaling.object.scaleWhenAdded.x * (scaling.initialScale + distance / scaling.initialDistance - 1);
         scaling.object.scale.setScalar(newScale);
     }
 
