@@ -107,9 +107,7 @@ function init() {
     hand1 = renderer.xr.getHand(0);
     hand1.addEventListener("pinchstart", onPinchStartLeft);
     hand1.addEventListener("pinchend", () => {
-
         scaling.active = false;
-
     });
     hand1.add(handModelFactory.createHandModel(hand1));
 
@@ -265,8 +263,6 @@ function onWindowResize() {
 
 }
 
-const SphereRadius = 0.05;
-
 function onPinchStartLeft(event) {
 
     const controller = event.target;
@@ -289,51 +285,15 @@ function onPinchStartLeft(event) {
                 return;
 
             }
-
         }
-
     }
-
-    const geometry = new THREE.BoxGeometry(SphereRadius, SphereRadius, SphereRadius);
-    const material = new THREE.MeshStandardMaterial({
-        color: Math.random() * 0xffffff,
-        roughness: 1.0,
-        metalness: 0.0
-    });
-    const spawn = new THREE.Mesh(geometry, material);
-    spawn.geometry.computeBoundingSphere();
-
-    const indexTip = controller.joints["index-finger-tip"];
-    spawn.position.copy(indexTip.position);
-    spawn.quaternion.copy(indexTip.quaternion);
-
-    models.push(spawn);
-
-    scene.add(spawn);
-
 }
 
 function collideObject(indexTip) {
-
-    for (let i = 0; i < models.length; i++) {
-        let collision = false;
-
-        const object = models[i];
-
-        object.traverse(child => {
-            if (collision) {
-                // Cannot break traverse call, but can skip remaining
-                return;
-            }
-            if (child.isMesh) {
-                const distance = indexTip.getWorldPosition(tmpVector1).distanceTo(child.getWorldPosition(tmpVector2));
-                if (distance < child.geometry.boundingSphere.radius * child.scale.x) {
-                    collision = true;
-                }
-            }
-        });
-
-        if (collision) {
+    for (const object of models) {
+        const box = new THREE.Box3();
+        box.expandByObject(object);
+        if (box.containsPoint(indexTip.getWorldPosition(tmpVector1))) {
             return object;
         }
     }
@@ -347,12 +307,10 @@ function onPinchStartRight(event) {
     const indexTip = controller.joints["index-finger-tip"];
     const object = collideObject(indexTip);
     if (object) {
-
         grabbing = true;
         indexTip.attach(object);
         controller.userData.selected = object;
         console.log("Selected", object);
-
     }
 }
 
