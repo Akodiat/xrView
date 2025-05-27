@@ -19,7 +19,6 @@ const tmpVector = new THREE.Vector3();
 
 let controls;
 
-let grabbing = false;
 const scaling = {
     active: false,
     initialDistance: 0,
@@ -106,12 +105,10 @@ function init() {
     scene.add(controllerGrip1);
 
     hand1 = renderer.xr.getHand(0);
-    hand1.addEventListener("pinchstart", onPinchStartLeft);
-    hand1.addEventListener("pinchend", () => {
-        scaling.active = false;
-    });
+    hand1.addEventListener("pinchstart", event => onPinchStart(event, hand1));
+    hand1.addEventListener("pinchend", event => onPinchEnd(event, hand1));
     hand1.add(handModelFactory.createHandModel(hand1));
-
+    hand1.userData.grabbing = false;
     scene.add(hand1);
 
     // Hand 2
@@ -120,9 +117,10 @@ function init() {
     scene.add(controllerGrip2);
 
     hand2 = renderer.xr.getHand(1);
-    hand2.addEventListener("pinchstart", onPinchStartRight);
-    hand2.addEventListener("pinchend", onPinchEndRight);
+    hand2.addEventListener("pinchstart", event => onPinchStart(event, hand2));
+    hand2.addEventListener("pinchend", event => onPinchEnd(event, hand2));
     hand2.add(handModelFactory.createHandModel(hand2));
+    hand2.userData.grabbing = false;
     scene.add(hand2);
 
     //
@@ -266,32 +264,6 @@ function onWindowResize() {
 
 }
 
-function onPinchStartLeft(event) {
-
-    const controller = event.target;
-
-    if (grabbing) {
-
-        const indexTip = controller.joints["index-finger-tip"];
-        const object = collideObject(indexTip);
-
-        if (object) {
-
-            const object2 = hand2.userData.selected;
-            console.log("sphere1", object, "sphere2", object2);
-            if (object === object2) {
-
-                scaling.active = true;
-                scaling.object = object;
-                scaling.initialScale = object.scale.x / object.scaleWhenAdded.x;
-                scaling.initialDistance = indexTip.position.distanceTo(hand2.joints["index-finger-tip"].position);
-                return;
-
-            }
-        }
-    }
-}
-
 //let boxHelper;
 function collideObject(indexTip) {
     for (const object of models) {
@@ -309,19 +281,34 @@ function collideObject(indexTip) {
 
 }
 
-function onPinchStartRight(event) {
+function onPinchStart(event, hand) {
+    const otherHand = hand === hand1 ? hand2 : hand1;
+
     const controller = event.target;
     const indexTip = controller.joints["index-finger-tip"];
     const object = collideObject(indexTip);
+
+    if (otherHand.userData.grabbing) {
+        if (object) {
+            const object2 = otherHand.userData.selected;
+            if (object === object2) {
+                scaling.active = true;
+                scaling.object = object;
+                scaling.initialScale = object.scale.x / object.scaleWhenAdded.x;
+                scaling.initialDistance = indexTip.position.distanceTo(otherHand.joints["index-finger-tip"].position);
+                return;
+            }
+        }
+    }
     if (object) {
-        grabbing = true;
+        hand.userData.grabbing = true;
         indexTip.attach(object);
         controller.userData.selected = object;
-        console.log("Selected", object);
     }
 }
 
-function onPinchEndRight(event) {
+
+function onPinchEnd(event, hand) {
 
     const controller = event.target;
 
@@ -331,12 +318,10 @@ function onPinchEndRight(event) {
         scene.attach(object);
 
         controller.userData.selected = undefined;
-        grabbing = false;
+        hand.userData.grabbing = false;
 
     }
-
     scaling.active = false;
-
 }
 
 //
