@@ -5,6 +5,7 @@ import {XRControllerModelFactory} from "three/addons/webxr/XRControllerModelFact
 import {XRHandModelFactory} from "three/addons/webxr/XRHandModelFactory.js";
 
 import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
+import {Connection} from "./connectivity.js";
 
 let canvas;
 let camera, scene, renderer;
@@ -27,6 +28,10 @@ const scaling = {
 };
 
 const models = [];
+
+const connection = new Connection(id=>{
+    console.log(`${window.location.href}?peerId=${id}`);
+});
 
 init();
 
@@ -144,7 +149,7 @@ function init() {
     modelInput.onchange = () => {
         for (const uploadedFile of modelInput.files) {
             const url = URL.createObjectURL(uploadedFile);
-            addModel(url, undefined, undefined, undefined, loader, ()=>URL.revokeObjectURL(url));
+            addModel(url, undefined, undefined, undefined, loader, false, uploadedFile, ()=>URL.revokeObjectURL(url));
         }
     };
 
@@ -176,6 +181,23 @@ function checkUrlParameters(loader) {
     for (const i in modelPaths) {
         addModel(modelPaths[i], scales[i], positions[i], quaternions[i], loader, false);
     }
+
+    searchParams.getAll("peerId").forEach(peerId=>
+        connection.getModelsFromPeer(peerId, data => {
+            if (data.fileBlob !== undefined) {
+                const url = URL.createObjectURL(data.fileBlob);
+                addModel(
+                    url, data.scale, data.position, data.quaternion,
+                    loader, data.fileBlob, ()=>URL.revokeObjectURL(url)
+                );
+            } else {
+                addModel(
+                    data.url, data.scale, data.position, data.quaternion,
+                    loader
+                );
+            }
+        })
+    );
 }
 
 /**
@@ -195,6 +217,7 @@ function addModel(
     quaternion,
     loader = new GLTFLoader(),
     updateUrlParams = true,
+    fileBlob = undefined,
     callback=()=>{},
 ) {
     loader.load(url, gltf => {
@@ -247,6 +270,10 @@ function addModel(
         if (updateUrlParams) {
             window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
         }
+
+        connection.sendModelToPeers({
+            url, scale, position, quaternion, fileBlob
+        });
 
         callback();
     }, undefined, e => {
