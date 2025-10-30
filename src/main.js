@@ -152,7 +152,10 @@ function init() {
     };
 
     connection = new Connection(id=>{
-        console.log(`${window.location.href}?peerId=${id}`);
+        const href = `${window.location.href}?peerId=${id}`;
+        console.log(href);
+
+        new QRCode(document.getElementById("qrcode"), href);
 
         checkUrlParameters(loader);
     });
