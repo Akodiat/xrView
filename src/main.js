@@ -29,9 +29,7 @@ const scaling = {
 
 const models = [];
 
-const connection = new Connection(id=>{
-    console.log(`${window.location.href}?peerId=${id}`);
-});
+let connection;
 
 init();
 
@@ -153,7 +151,12 @@ function init() {
         }
     };
 
-    checkUrlParameters(loader);
+    connection = new Connection(id=>{
+        console.log(`${window.location.href}?peerId=${id}`);
+
+        checkUrlParameters(loader);
+    });
+
 
     window.addModel = addModel;
     window.models = models;
@@ -184,11 +187,13 @@ function checkUrlParameters(loader) {
 
     searchParams.getAll("peerId").forEach(peerId=>
         connection.getModelsFromPeer(peerId, data => {
-            if (data.fileBlob !== undefined) {
-                const url = URL.createObjectURL(data.fileBlob);
+            if (data.fileBlob) {
+                // Convert back to blob (see https://github.com/peers/peerjs/issues/1254)
+                const blob = new Blob([data.fileBlob], {type: 'model/gltf-binary'});
+                const url = URL.createObjectURL(blob);
                 addModel(
                     url, data.scale, data.position, data.quaternion,
-                    loader, data.fileBlob, ()=>URL.revokeObjectURL(url)
+                    loader, blob, ()=>URL.revokeObjectURL(url)
                 );
             } else {
                 addModel(
@@ -227,7 +232,7 @@ function addModel(
         params.append("modelPath", url);
 
         // Apply transformations, if provided
-        if (scale !== undefined) {
+        if (scale) {
             if (typeof(scale) === "number") {
                 model.scale.setScalar(scale);
                 params.append("scale", scale);
@@ -237,11 +242,11 @@ function addModel(
                 params.append("scale", scale.toArray().join(","));
             }
         }
-        if (position !== undefined) {
+        if (position) {
             model.position.copy(position);
             params.append("position", position.toArray().join(","));
         }
-        if (quaternion !== undefined) {
+        if (quaternion) {
             model.quaternion.copy(quaternion);
             params.append("quaterinon", quaternion.toArray().join(","));
         }
@@ -272,7 +277,8 @@ function addModel(
         }
 
         connection.sendModelToPeers({
-            url, scale, position, quaternion, fileBlob
+            url, scale, position, quaternion,
+            fileBlob: fileBlob ? new Blob([fileBlob], {type: fileBlob.type}): undefined
         });
 
         callback();

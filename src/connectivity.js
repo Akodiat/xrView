@@ -18,7 +18,7 @@ class Connection {
                 console.log(err);
             });
             conn.on('open', () => {
-                console.log("Open");
+                console.log(`Peer ${conn.peer} connected to us`);
                 this.listeners.push(conn);
             });
         });
@@ -34,12 +34,15 @@ class Connection {
     getModelsFromPeer(destPeerId, onFile) {
         // We want to connect to a hosting client
         console.log(`Trying to connect to peer ${destPeerId}`);
-        const conn = this.peer.connect(destPeerId);
 
-        conn.on('error', err=>{
-            console.log("Error:");
+        if (!this.peer) {
+            console.log("Peer not started yet");
+        }
+
+        this.peer.on("error", err=>{
             console.log(err);
-        });
+        })
+        const conn = this.peer.connect(destPeerId, {reliable: true});
 
         conn.on('open', () => {
             console.log(`Connected to peer id ${destPeerId}`);
@@ -48,7 +51,10 @@ class Connection {
                 console.log('Received', data);
                 onFile(data);
             });
-        });
+        }).on('error', err=>{
+            console.log("Error:");
+            console.log(err);
+        })
     }
 }
 
