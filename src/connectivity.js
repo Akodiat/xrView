@@ -1,59 +1,103 @@
 /* global Peer */
 class Connection {
-    constructor(callback) {
+    constructor(scene, animations, animationMixers, log, callback) {
+        this.scene = scene;
+        this.animations = animations;
+        this.animationMixers = animationMixers;
+        this.log = log
         this.peer = new Peer();
         this.listeners = [];
 
         this.peer.on('open', id => {
             this.id = id;
-            //console.log('My peer ID is: ' + id);
+            this.log("Connection open");
             callback(id);
         });
 
         // When someone connects to us
         this.peer.on('connection', conn => {
-            console.log("Connection!")
+            this.log("Connection attempt");
             conn.on('error', err=>{
-                console.log("Error:");
-                console.log(err);
+                this.log("Connection error:");
+                this.log(err);
             });
             conn.on('open', () => {
-                console.log(`Peer ${conn.peer} connected to us`);
+                this.log(`Peer ${conn.peer} connected to us`);
                 this.listeners.push(conn);
+
+                this.sync(conn);
             });
         });
     }
 
     sendModelToPeers(modelData) {
-        console.log(modelData)
+        this.log(modelData)
         for (const conn of this.listeners) {
             conn.send(modelData);
         }
     }
 
+    syncAll() {
+        for (const conn of this.listeners) {
+            this.sync(conn);
+        }
+    }
+
+    sync(conn) {
+        for (const c of this.scene.children) {
+            const serializedObj = c.toJSON();
+            let serializedAnimation;
+            if (this.animations.has(c)) {
+                serializedAnimation = this.animations.get(c).toJSON();
+            }
+            conn.send({
+                type: "object",
+                object: serializedObj,
+                animation: serializedAnimation
+            })
+        }
+    }
+
     getModelsFromPeer(destPeerId, onFile) {
         // We want to connect to a hosting client
-        console.log(`Trying to connect to peer ${destPeerId}`);
+        this.log(`Trying to connect to peer ${destPeerId}`);
 
         if (!this.peer) {
-            console.log("Peer not started yet");
+            this.log("Peer not started yet");
         }
 
         this.peer.on("error", err=>{
-            console.log(err);
+            this.log(err);
         })
         const conn = this.peer.connect(destPeerId, {reliable: true});
 
         conn.on('open', () => {
-            console.log(`Connected to peer id ${destPeerId}`);
+            this.log(`Connected to peer id ${destPeerId}`);
             // Receive messages
             conn.on('data', data => {
-                console.log('Received', data);
-                onFile(data);
+                this.log("Recieved data");
+                if (data.type === "object") {
+
+                    const loader = new THREE.ObjectLoader();
+                    loader.parseAsync(data.object).then(object=>{
+                        this.scene.add(object);
+                        if (data.animation) {
+                            const mixer = new THREE.AnimationMixer(object);
+                            const animation = THREE.AnimationClip.parse(data.animation);
+                            const action = mixer.clipAction(animation);
+                            action.play();
+                            this.animationMixers.push(mixer);
+                            animations.set(model, animation);
+                        }
+                    }
+                    );
+                } else {
+                    onFile(data);
+                }
             });
         }).on('error', err=>{
-            console.log("Error:");
-            console.log(err);
+            this.log("Error:");
+            this.log(err);
         })
     }
 }

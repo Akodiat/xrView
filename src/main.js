@@ -15,6 +15,7 @@ let controllerGrip1, controllerGrip2;
 
 let clock;
 const animationMixers = [];
+const animations = new Map();
 
 const tmpVector = new THREE.Vector3();
 
@@ -151,14 +152,25 @@ function init() {
         }
     };
 
-    connection = new Connection(id=>{
-        const href = `${window.location.href}?peerId=${id}`;
-        console.log(href);
+    connection = new Connection(scene, animations, animationMixers,
+        logText => document.getElementById("syncLog").innerHTML += `<p>${logText}</p>`,
+        id=>{
+            const href = `${window.location.href.split("?")[0]}?peerId=${id}`;
+            console.log(href);
 
-        new QRCode(document.getElementById("qrcode"), href);
+            new QRCode(document.getElementById("qrcode"), href);
 
-        checkUrlParameters(loader);
-    });
+            const shareLink = document.getElementById("shareLink");
+            shareLink.href = href;
+            shareLink.innerHTML = href;
+
+            document.getElementById("copyLinkButton").addEventListener(
+                "click", () => navigator.clipboard.writeText(href)
+            )
+
+            checkUrlParameters(loader);
+        }
+    );
 
 
     window.addModel = addModel;
@@ -269,9 +281,11 @@ function addModel(
 
         if (gltf.animations.length > 0) {
             const mixer = new THREE.AnimationMixer(model);
-            const action = mixer.clipAction(gltf.animations[0]);
+            const animation = gltf.animations[0];
+            const action = mixer.clipAction(animation);
             action.play();
             animationMixers.push(mixer);
+            animations.set(model, animation);
         }
         console.log("Model added");
 
@@ -360,7 +374,6 @@ function onPinchEnd(event, hand) {
     scaling.active = false;
 }
 
-//
 
 function animate() {
 
