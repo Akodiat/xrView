@@ -1,15 +1,22 @@
 /* global Peer */
+
+import * as THREE from "three";
+
 class Connection {
     constructor(scene, animations, animationMixers, log, callback) {
         this.scene = scene;
         this.animations = animations;
         this.animationMixers = animationMixers;
         this.log = log
-        this.peer = new Peer();
         this.listeners = [];
+
+        const peerId = localStorage.getItem("peerId");
+
+        this.peer = new Peer(peerId);
 
         this.peer.on('open', id => {
             this.id = id;
+            localStorage.setItem("peerId", id);
             this.log("Connection open");
             callback(id);
         });
