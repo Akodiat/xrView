@@ -32,40 +32,46 @@ class Connection {
                 this.log(`Peer ${conn.peer} connected to us`);
                 this.listeners.push(conn);
 
-                this.sync(conn);
+                this.sync([conn]);
             });
         });
     }
 
-    sendModelToPeers(modelData) {
-        this.log(modelData)
-        for (const conn of this.listeners) {
-            conn.send(modelData);
+    sendObject(object, connections = this.listeners) {
+        const message = {
+            type: "object",
+            object: JSON.stringify(object.toJSON())
+        }
+        if (this.animations.has(object)) {
+            message.animation = JSON.stringify(this.animations.get(object).toJSON());
+        }
+        for (const conn of connections) {
+            this.log(`Sending object to peer ${conn.peer}`);
+            conn.send(message);
         }
     }
 
-    syncAll() {
-        for (const conn of this.listeners) {
-            this.sync(conn);
-        }
-    }
-
-    sync(conn) {
+    sync(connections = this.listeners) {
+        const serializedList = [];
         for (const c of this.scene.children) {
-            const serializedObj = c.toJSON();
-            let serializedAnimation;
-            if (this.animations.has(c)) {
-                serializedAnimation = this.animations.get(c).toJSON();
+            const serialized = {
+                object: JSON.stringify(c.toJSON())
             }
+            if (this.animations.has(c)) {
+                serialized.animation = JSON.stringify(this.animations.get(c).toJSON());
+            }
+            serializedList.push(serialized);
+        }
+        for (const conn of connections) {
+            this.log(`Sending scene to peer ${conn.peer}`);
             conn.send({
-                type: "object",
-                object: serializedObj,
-                animation: serializedAnimation
+                type: "sync",
+                sceneData: serializedList
             })
         }
     }
 
-    getModelsFromPeer(destPeerId, onFile) {
+    getModelsFromPeer(destPeerId) {
         // We want to connect to a hosting client
         this.log(`Trying to connect to peer ${destPeerId}`);
 
@@ -82,24 +88,15 @@ class Connection {
             this.log(`Connected to peer id ${destPeerId}`);
             // Receive messages
             conn.on('data', data => {
-                this.log("Recieved data");
-                if (data.type === "object") {
-
-                    const loader = new THREE.ObjectLoader();
-                    loader.parseAsync(data.object).then(object=>{
-                        this.scene.add(object);
-                        if (data.animation) {
-                            const mixer = new THREE.AnimationMixer(object);
-                            const animation = THREE.AnimationClip.parse(data.animation);
-                            const action = mixer.clipAction(animation);
-                            action.play();
-                            this.animationMixers.push(mixer);
-                            animations.set(model, animation);
-                        }
+                if (data.type === "sync") {
+                    this.log("Recieved sync data");
+                    for (const d of data.sceneData) {
+                        // TODO: remove any previous scene content before adding the new
+                        addDataToScene(this.scene, d.object, d.animation, this.animationMixers, this.animations);
                     }
-                    );
-                } else {
-                    onFile(data);
+                } else if (data.type === "object") {
+                    this.log("Recieved object data");
+                    addDataToScene(this.scene, data.object, data.animation, this.animationMixers, this.animations);
                 }
             });
         }).on('error', err=>{
@@ -107,6 +104,22 @@ class Connection {
             this.log(err);
         })
     }
+}
+
+const objectLoader = new THREE.ObjectLoader();
+
+function addDataToScene(scene, serializedObject, serializedAnimation, animationMixers, animations) {
+    objectLoader.parseAsync(JSON.parse(serializedObject)).then(object=>{
+        scene.add(object);
+        if (serializedAnimation) {
+            const mixer = new THREE.AnimationMixer(object);
+            const animation = THREE.AnimationClip.parse(JSON.parse(serializedAnimation));
+            const action = mixer.clipAction(animation);
+            action.play();
+            animationMixers.push(mixer);
+            animations.set(object, animation);
+        }
+    });
 }
 
 

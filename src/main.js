@@ -148,12 +148,15 @@ function init() {
     modelInput.onchange = () => {
         for (const uploadedFile of modelInput.files) {
             const url = URL.createObjectURL(uploadedFile);
-            addModel(url, undefined, undefined, undefined, loader, false, uploadedFile, ()=>URL.revokeObjectURL(url));
+            addModel(url, undefined, undefined, undefined, loader, false, ()=>URL.revokeObjectURL(url));
         }
     };
 
     connection = new Connection(scene, animations, animationMixers,
-        logText => document.getElementById("syncLog").innerHTML += `<p>${logText}</p>`,
+        logText => {
+            console.log(logText);
+            document.getElementById("syncLog").innerHTML += `<p>${logText}</p>`;
+        },
         id=>{
             const href = `${window.location.href.split("?")[0]}?peerId=${id}`;
             console.log(href);
@@ -201,22 +204,7 @@ function checkUrlParameters(loader) {
     }
 
     searchParams.getAll("peerId").forEach(peerId=>
-        connection.getModelsFromPeer(peerId, data => {
-            if (data.fileBlob) {
-                // Convert back to blob (see https://github.com/peers/peerjs/issues/1254)
-                const blob = new Blob([data.fileBlob], {type: 'model/gltf-binary'});
-                const url = URL.createObjectURL(blob);
-                addModel(
-                    url, data.scale, data.position, data.quaternion,
-                    loader, blob, ()=>URL.revokeObjectURL(url)
-                );
-            } else {
-                addModel(
-                    data.url, data.scale, data.position, data.quaternion,
-                    loader
-                );
-            }
-        })
+        connection.getModelsFromPeer(peerId)
     );
 }
 
@@ -237,7 +225,6 @@ function addModel(
     quaternion,
     loader = new GLTFLoader(),
     updateUrlParams = true,
-    fileBlob = undefined,
     callback=()=>{},
 ) {
     loader.load(url, gltf => {
@@ -293,10 +280,7 @@ function addModel(
             window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
         }
 
-        connection.sendModelToPeers({
-            url, scale, position, quaternion,
-            fileBlob: fileBlob ? new Blob([fileBlob], {type: fileBlob.type}): undefined
-        });
+        connection.sendObject(model);
 
         callback();
     }, undefined, e => {
