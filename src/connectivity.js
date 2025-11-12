@@ -113,6 +113,7 @@ function addDataToScene(scene, models, serializedObject, serializedAnimation, an
     objectLoader.parseAsync(JSON.parse(serializedObject)).then(object=>{
         scene.add(object);
         models.push(object);
+        object.scaleWhenAdded = object.scale.clone();
 
         if (serializedAnimation) {
             const mixer = new THREE.AnimationMixer(object);
