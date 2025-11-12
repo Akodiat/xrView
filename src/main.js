@@ -152,7 +152,7 @@ function init() {
         }
     };
 
-    connection = new Connection(scene, animations, animationMixers,
+    connection = new Connection(scene, models, animations, animationMixers,
         logText => {
             console.log(logText);
             document.getElementById("syncLog").innerHTML += `<p>${logText}</p>`;

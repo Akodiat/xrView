@@ -3,8 +3,9 @@
 import * as THREE from "three";
 
 class Connection {
-    constructor(scene, animations, animationMixers, log, callback) {
+    constructor(scene, models, animations, animationMixers, log, callback) {
         this.scene = scene;
+        this.models = models;
         this.animations = animations;
         this.animationMixers = animationMixers;
         this.log = log
@@ -92,11 +93,11 @@ class Connection {
                     this.log("Recieved sync data");
                     for (const d of data.sceneData) {
                         // TODO: remove any previous scene content before adding the new
-                        addDataToScene(this.scene, d.object, d.animation, this.animationMixers, this.animations);
+                        addDataToScene(this.scene, this.models, d.object, d.animation, this.animationMixers, this.animations);
                     }
                 } else if (data.type === "object") {
                     this.log("Recieved object data");
-                    addDataToScene(this.scene, data.object, data.animation, this.animationMixers, this.animations);
+                    addDataToScene(this.scene, this.models, data.object, data.animation, this.animationMixers, this.animations);
                 }
             });
         }).on('error', err=>{
@@ -108,9 +109,11 @@ class Connection {
 
 const objectLoader = new THREE.ObjectLoader();
 
-function addDataToScene(scene, serializedObject, serializedAnimation, animationMixers, animations) {
+function addDataToScene(scene, models, serializedObject, serializedAnimation, animationMixers, animations) {
     objectLoader.parseAsync(JSON.parse(serializedObject)).then(object=>{
         scene.add(object);
+        models.push(object);
+
         if (serializedAnimation) {
             const mixer = new THREE.AnimationMixer(object);
             const animation = THREE.AnimationClip.parse(JSON.parse(serializedAnimation));
