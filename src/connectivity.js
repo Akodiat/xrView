@@ -9,7 +9,7 @@ class Connection {
         this.animations = animations;
         this.animationMixers = animationMixers;
         this.log = log
-        this.listeners = [];
+        this.peers = [];
 
         const peerId = localStorage.getItem("peerId");
 
@@ -31,14 +31,39 @@ class Connection {
             });
             conn.on('open', () => {
                 this.log(`Peer ${conn.peer} connected to us`);
-                this.listeners.push(conn);
+                this.peers.push(conn);
 
                 this.sync([conn]);
+            });
+            conn.on('data', data => {
+                if (data.type === "update") {
+                    this.log("Recieved update data");
+                    const object = this.scene.children.find(o=>o.uuid === data.uuid);
+                    if (object) {
+                        object.position.fromArray(data.position);
+                        object.quaternion.fromArray(data.quaternion);
+                        object.scale.fromArray(data.scale);
+                        this.log("Found object to update")
+                    }
+                }
             });
         });
     }
 
-    sendObject(object, connections = this.listeners) {
+    updateObject(object, connections = this.peers) {
+        for (const conn of connections) {
+            this.log(`Moving object at peer ${conn.peer}`);
+            conn.send({
+                type: "update",
+                uuid: object.uuid,
+                position: object.position.toArray(),
+                quaternion: object.quaternion.toArray(),
+                scale: object.scale.toArray()
+            });
+        }
+    }
+
+    sendObject(object, connections = this.peers) {
         const message = {
             type: "object",
             object: JSON.stringify(object.toJSON())
@@ -52,7 +77,7 @@ class Connection {
         }
     }
 
-    sync(connections = this.listeners) {
+    sync(connections = this.peers) {
         const serializedList = [];
         for (const c of this.scene.children) {
             const serialized = {
@@ -84,6 +109,9 @@ class Connection {
             this.log(err);
         })
         const conn = this.peer.connect(destPeerId, {reliable: true});
+
+        // If we want two-way communication
+        this.peers.push(conn);
 
         conn.on('open', () => {
             this.log(`Connected to peer id ${destPeerId}`);

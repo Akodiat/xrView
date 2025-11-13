@@ -343,6 +343,7 @@ function onPinchEnd(event, hand) {
         controller.userData.selected = undefined;
         hand.userData.grabbing = false;
 
+        connection.updateObject(object);
     }
     scaling.active = false;
 }
