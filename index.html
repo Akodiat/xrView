@@ -28,37 +28,64 @@
 
         <article style="position: absolute; max-height: 100%; max-width: 700px; overflow-y: scroll;">
             <h1>xrView</h1>
+            <p>
+                <small>By Joakim Bohlin, Infravis</small>
+            </p>
             <p>Open this page from the browser inside a compatible XR headset (e.g. Meta Quest) and click "Start XR".</p>
             <details>
-                <summary>Loading 3D models</summary>
-                <p>You have three options to load models:
-                    <ul>
-                        <li>Use URL parameters (<a href=".">Reset</a>):
-                            <ul>
-                                <li><a href="./?modelPath=https%3A%2F%2Fthreejs.org%2Fexamples%2Fmodels%2Fgltf%2FHorse.glb&scale=0.01&position=0.75%2C0%2C0&modelPath=https%3A%2F%2Fthreejs.org%2Fexamples%2Fmodels%2Fgltf%2FFlamingo.glb&scale=0.011&position=-0.75%2C1.5%2C0">Horse and flamingo</a></li>
-                                <li><a href="./?modelPath=https://raw.githubusercontent.com/gunterAlce/webar-tutorial/main/a1m.glb&scale=0.01&position=0,1,0">Protein</a></li>
-                                <li><a href="./?modelPath=https://raw.githubusercontent.com/gunterAlce/webar-tutorial/main/microFos3.glb&scale=5&position=0,1,0">Microfossil</a></li>
-                            </ul>
-                        </li>
-                        <li>Use the web console: <pre>addModel(url, scale, position, quaternion)</pre></li>
-                        <li>Upload one or more glTF/glb files here: <input id="modelInput" type="file" accept=".gltf, .glb" multiple>
-                        </li>
-                    </ul>
-                </p>
+                <summary role="button" class="outline secondary">Loading 3D models</summary>
+                <article>
+                    <p>You have three options to load models:
+                        <ul>
+                            <li>Use URL parameters (<a href=".">Reset</a>):
+                                <ul>
+                                    <li><a href="./?modelPath=https%3A%2F%2Fthreejs.org%2Fexamples%2Fmodels%2Fgltf%2FHorse.glb&scale=0.01&position=0.75%2C0%2C0&modelPath=https%3A%2F%2Fthreejs.org%2Fexamples%2Fmodels%2Fgltf%2FFlamingo.glb&scale=0.011&position=-0.75%2C1.5%2C0">Horse and flamingo</a></li>
+                                    <li><a href="./?modelPath=https://raw.githubusercontent.com/gunterAlce/webar-tutorial/main/a1m.glb&scale=0.01&position=0,1,0">Protein</a></li>
+                                    <li><a href="./?modelPath=https://raw.githubusercontent.com/gunterAlce/webar-tutorial/main/microFos3.glb&scale=5&position=0,1,0">Microfossil</a></li>
+                                </ul>
+                            </li>
+                            <li>Use the web console: <pre>addModel(url, scale, position, quaternion)</pre></li>
+                            <li>Upload one or more glTF/glb files here: <input id="modelInput" type="file" accept=".gltf, .glb" multiple>
+                            </li>
+                        </ul>
+                    </p>
+                </article>
             </details>
             <details>
-                <summary>Sync</summary>
-                <div id="qrcode"></div>
+                <summary role="button" class="outline secondary">Sync</summary>
                 <article>
-                    <a href="" id="shareLink" target="_blank"></a>
-                    <button id="copyLinkButton">Copy link</button>
+
+                    <p>
+                        Sync the scene between different devices using peer-to-peer
+                        connections. For example, this can be used to send data
+                        between a computer and a VR headset.
+                    </p>
+                    <p>
+                        To connect to this instance, open the link below
+                        on the other device. Instead of typing the whole id
+                        into a headset, it is advisable to use a link shortener
+                        or (if possible) to scan the QR code below.
+                    </p>
+                    <div class="grid">
+                        <div>
+                            <a href="" id="shareLink" target="_blank"></a>
+                        </div>
+                        <div>
+                            <button id="copyLinkButton">Copy link</button>
+                        </div>
+                    </div>
+                    <p>
+                    </p>
+                    <div id="qrcode"></div>
                 </article>
                 <details>
-                    <summary>Sync log</summary>
+                    <summary role="button" class="outline secondary">Sync log</summary>
+                    <article>
+                        <small>
+                            <div id="syncLog"></div>
+                        </small>
+                    </article>
                 </details>
-                <small>
-                    <div id="syncLog"></div>
-                </small>
             </details>
 
         </article>
