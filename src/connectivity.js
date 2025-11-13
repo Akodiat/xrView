@@ -35,19 +35,31 @@ class Connection {
 
                 this.sync([conn]);
             });
-            conn.on('data', data => {
-                if (data.type === "update") {
-                    this.log("Recieved update data");
-                    const object = this.scene.children.find(o=>o.uuid === data.uuid);
-                    if (object) {
-                        object.position.fromArray(data.position);
-                        object.quaternion.fromArray(data.quaternion);
-                        object.scale.fromArray(data.scale);
-                        this.log("Found object to update")
-                    }
-                }
-            });
+            conn.on('data', data => this.onData(data));
         });
+    }
+
+    onData(data) {
+        if (data.type === "update") {
+            this.log("Recieved update data");
+            const object = this.scene.children.find(o=>o.uuid === data.uuid);
+            if (object) {
+                object.position.fromArray(data.position);
+                object.quaternion.fromArray(data.quaternion);
+                object.scale.fromArray(data.scale);
+                this.log("Found object to update")
+            }
+        }
+        if (data.type === "sync") {
+            this.log("Recieved sync data");
+            for (const d of data.sceneData) {
+                // TODO: remove any previous scene content before adding the new
+                addDataToScene(this.scene, this.models, d.object, d.animation, this.animationMixers, this.animations);
+            }
+        } else if (data.type === "object") {
+            this.log("Recieved object data");
+            addDataToScene(this.scene, this.models, data.object, data.animation, this.animationMixers, this.animations);
+        }
     }
 
     updateObject(object, connections = this.peers) {
@@ -116,18 +128,7 @@ class Connection {
         conn.on('open', () => {
             this.log(`Connected to peer id ${destPeerId}`);
             // Receive messages
-            conn.on('data', data => {
-                if (data.type === "sync") {
-                    this.log("Recieved sync data");
-                    for (const d of data.sceneData) {
-                        // TODO: remove any previous scene content before adding the new
-                        addDataToScene(this.scene, this.models, d.object, d.animation, this.animationMixers, this.animations);
-                    }
-                } else if (data.type === "object") {
-                    this.log("Recieved object data");
-                    addDataToScene(this.scene, this.models, data.object, data.animation, this.animationMixers, this.animations);
-                }
-            });
+            conn.on('data', data => this.onData(data));
         }).on('error', err=>{
             this.log("Error:");
             this.log(err);
