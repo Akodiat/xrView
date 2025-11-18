@@ -3,6 +3,7 @@ import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {XRButton} from "three/addons/webxr/XRButton.js";
 import {XRControllerModelFactory} from "three/addons/webxr/XRControllerModelFactory.js";
 import {XRHandModelFactory} from "three/addons/webxr/XRHandModelFactory.js";
+import {TransformControls} from "three/addons/controls/TransformControls.js";
 
 import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
 import {Connection} from "./connectivity.js";
@@ -17,9 +18,14 @@ let clock;
 const animationMixers = [];
 const animations = new Map();
 
+const raycaster = new THREE.Raycaster();
+
 const tmpVector = new THREE.Vector3();
 
-let controls;
+let orbitControls;
+let transformControls;
+
+const transformModes =  ["translate", "rotate", "scale"];
 
 const scaling = {
     active: false,
@@ -44,9 +50,22 @@ function init() {
     camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 1.6, 3);
 
-    controls = new OrbitControls(camera, canvas);
-    controls.target.set(0, 1.6, 0);
-    controls.update();
+    orbitControls = new OrbitControls(camera, canvas);
+    orbitControls.target.set(0, 1.6, 0);
+    orbitControls.update();
+
+    transformControls = new TransformControls(camera, canvas);
+    transformControls.addEventListener("dragging-changed", event => {
+        orbitControls.enabled = ! event.value;
+    });
+    transformControls.addEventListener("objectChange", () => {
+        connection.updateObject(transformControls.object);
+    });
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("dblclick", onDblclick)
+
+    const transformGizmo = transformControls.getHelper();
+    scene.add(transformGizmo);
 
     // Setup clock (for use in animation loop)
     clock = new THREE.Clock();
@@ -346,6 +365,39 @@ function onPinchEnd(event, hand) {
         connection.updateObject(object);
     }
     scaling.active = false;
+}
+
+function onPointerDown(event) {
+
+    const pointer = new THREE.Vector2(
+        (event.clientX / window.innerWidth) * 2 - 1,
+        - (event.clientY / window.innerHeight) * 2 + 1
+    );
+
+    raycaster.setFromCamera(pointer, camera);
+
+    const intersects = raycaster.intersectObjects(models);
+
+    if (intersects.length > 0) {
+        let object = intersects[0].object;
+        while (!models.includes(object) && object.parent) {
+            object = object.parent;
+        }
+        if (object !== transformControls.object) {
+            transformControls.attach(object);
+        }
+    } else {
+        if (!transformControls.dragging) {
+            transformControls.detach();
+        }
+    }
+}
+
+function onDblclick() {
+    if (transformControls.object) {
+        const modeIdx = transformModes.findIndex(m=>m === transformControls.getMode());
+        transformControls.setMode(transformModes[(modeIdx+1) % (transformModes.length)]);
+    }
 }
 
 

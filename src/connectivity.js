@@ -15,7 +15,7 @@ class Connection {
 
         this.peer = new Peer(peerId);
 
-        this.peer.on('open', id => {
+        this.peer.on("open", id => {
             this.id = id;
             localStorage.setItem("peerId", id);
             this.log("Connection open");
@@ -23,31 +23,31 @@ class Connection {
         });
 
         // When someone connects to us
-        this.peer.on('connection', conn => {
+        this.peer.on("connection", conn => {
             this.log("Connection attempt");
-            conn.on('error', err=>{
+            conn.on("error", err=>{
                 this.log("Connection error:");
                 this.log(err);
             });
-            conn.on('open', () => {
+            conn.on("open", () => {
                 this.log(`Peer ${conn.peer} connected to us`);
                 this.peers.push(conn);
 
                 this.sync([conn]);
             });
-            conn.on('data', data => this.onData(data));
+            conn.on("data", data => this.onData(data));
         });
     }
 
     onData(data) {
         if (data.type === "update") {
-            this.log("Recieved update data");
+            //this.log("Recieved update data");
             const object = this.scene.children.find(o=>o.uuid === data.uuid);
             if (object) {
                 object.position.fromArray(data.position);
                 object.quaternion.fromArray(data.quaternion);
                 object.scale.fromArray(data.scale);
-                this.log("Found object to update")
+                //this.log("Found object to update")
             }
         }
         if (data.type === "sync") {
@@ -91,7 +91,7 @@ class Connection {
 
     sync(connections = this.peers) {
         const serializedList = [];
-        for (const c of this.scene.children) {
+        for (const c of this.models) {
             const serialized = {
                 object: JSON.stringify(c.toJSON())
             }
@@ -125,11 +125,11 @@ class Connection {
         // If we want two-way communication
         this.peers.push(conn);
 
-        conn.on('open', () => {
+        conn.on("open", () => {
             this.log(`Connected to peer id ${destPeerId}`);
             // Receive messages
-            conn.on('data', data => this.onData(data));
-        }).on('error', err=>{
+            conn.on("data", data => this.onData(data));
+        }).on("error", err=>{
             this.log("Error:");
             this.log(err);
         })
