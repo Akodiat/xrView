@@ -52,8 +52,14 @@ class Connection {
         }
         if (data.type === "sync") {
             this.log("Recieved sync data");
+
+            // Remove any previous scene data
+            for (const m of this.models) {
+                this.scene.remove(m)
+            }
+
+            this.models = [];
             for (const d of data.sceneData) {
-                // TODO: remove any previous scene content before adding the new
                 addDataToScene(this.scene, this.models, d.object, d.animation, this.animationMixers, this.animations);
             }
         } else if (data.type === "object") {
@@ -63,15 +69,16 @@ class Connection {
     }
 
     updateObject(object, connections = this.peers) {
+        const message = {
+            type: "update",
+            uuid: object.uuid,
+            position: object.position.toArray(),
+            quaternion: object.quaternion.toArray(),
+            scale: object.scale.toArray()
+        }
         for (const conn of connections) {
-            this.log(`Moving object at peer ${conn.peer}`);
-            conn.send({
-                type: "update",
-                uuid: object.uuid,
-                position: object.position.toArray(),
-                quaternion: object.quaternion.toArray(),
-                scale: object.scale.toArray()
-            });
+            //this.log(`Moving object at peer ${conn.peer}`);
+            conn.send(message);
         }
     }
 

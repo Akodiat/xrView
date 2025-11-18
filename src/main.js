@@ -130,6 +130,7 @@ function init() {
     hand1 = renderer.xr.getHand(0);
     hand1.addEventListener("pinchstart", event => onPinchStart(event, hand1));
     hand1.addEventListener("pinchend", event => onPinchEnd(event, hand1));
+    hand1.addEventListener("move", event => onHandMove(event));
     hand1.add(handModelFactory.createHandModel(hand1));
     hand1.userData.grabbing = false;
     scene.add(hand1);
@@ -142,6 +143,7 @@ function init() {
     hand2 = renderer.xr.getHand(1);
     hand2.addEventListener("pinchstart", event => onPinchStart(event, hand2));
     hand2.addEventListener("pinchend", event => onPinchEnd(event, hand2));
+    hand1.addEventListener("move", event => onHandMove(event));
     hand2.add(handModelFactory.createHandModel(hand2));
     hand2.userData.grabbing = false;
     scene.add(hand2);
@@ -361,10 +363,21 @@ function onPinchEnd(event, hand) {
 
         controller.userData.selected = undefined;
         hand.userData.grabbing = false;
-
-        connection.updateObject(object);
     }
     scaling.active = false;
+}
+
+
+function onHandMove(event) {
+    const controller = event.target;
+    const indexTip = controller.joints["index-finger-tip"];
+    const object = controller.userData.selected;
+
+    if (object !== undefined) {
+        scene.attach(object);
+        connection.updateObject(controller.userData.selected);
+        indexTip.attach(object);
+    }
 }
 
 function onPointerDown(event) {
