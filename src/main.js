@@ -61,7 +61,7 @@ function init() {
     transformControls.addEventListener("objectChange", () => {
         connection.updateObject(transformControls.object);
     });
-    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("click", onClick);
     canvas.addEventListener("dblclick", onDblclick)
 
     const transformGizmo = transformControls.getHelper();
@@ -380,7 +380,7 @@ function onHandMove(event) {
     }
 }
 
-function onPointerDown(event) {
+function onClick(event) {
 
     const pointer = new THREE.Vector2(
         (event.clientX / window.innerWidth) * 2 - 1,
