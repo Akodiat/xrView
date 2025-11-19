@@ -35,7 +35,15 @@ class Connection {
 
                 this.sync([conn]);
             });
-            conn.on("data", data => this.onData(data));
+            conn.on("data", data => {
+                this.onData(data);
+                // Forward data to other peers
+                for (const conn2 of this.peers) {
+                    if (conn !== conn2) {
+                        conn2.send(data);
+                    }
+                }
+            });
         });
     }
 
@@ -135,7 +143,15 @@ class Connection {
         conn.on("open", () => {
             this.log(`Connected to peer id ${destPeerId}`);
             // Receive messages
-            conn.on("data", data => this.onData(data));
+            conn.on("data", data => {
+                this.onData(data);
+                // Forward data to other peers
+                for (const conn2 of this.peers) {
+                    if (conn !== conn2) {
+                        conn2.send(data);
+                    }
+                }
+            });
         }).on("error", err=>{
             this.log("Error:");
             this.log(err);
