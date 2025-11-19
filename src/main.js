@@ -1,26 +1,21 @@
 import * as THREE from "three";
 import {OrbitControls} from "three/addons/controls/OrbitControls.js";
 import {XRButton} from "three/addons/webxr/XRButton.js";
-import {XRControllerModelFactory} from "three/addons/webxr/XRControllerModelFactory.js";
-import {XRHandModelFactory} from "three/addons/webxr/XRHandModelFactory.js";
 import {TransformControls} from "three/addons/controls/TransformControls.js";
 
 import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
 import {Connection} from "./connectivity.js";
+import {createHands} from "./xrHands.js";
 
 let canvas;
 let camera, scene, renderer;
 let hand1, hand2;
-let controller1, controller2;
-let controllerGrip1, controllerGrip2;
 
 let clock;
 const animationMixers = [];
 const animations = new Map();
 
 const raycaster = new THREE.Raycaster();
-
-const tmpVector = new THREE.Vector3();
 
 let orbitControls;
 let transformControls;
@@ -50,10 +45,12 @@ function init() {
     camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 1.6, 3);
 
+    // Setup orbit controls (to move camera)
     orbitControls = new OrbitControls(camera, canvas);
     orbitControls.target.set(0, 1.6, 0);
     orbitControls.update();
 
+    // Setup transform controls (to translate, rotate, and scale models)
     transformControls = new TransformControls(camera, canvas);
     transformControls.addEventListener("dragging-changed", event => {
         orbitControls.enabled = ! event.value;
@@ -81,6 +78,8 @@ function init() {
     floor.receiveShadow = true;
     scene.add(floor);
 
+    // Setup lights
+
     scene.add(new THREE.HemisphereLight(0xbcbcbc, 0xa5a5a5, 3));
 
     const light = new THREE.DirectionalLight(0xffffff, 3);
@@ -93,7 +92,7 @@ function init() {
     light.shadow.mapSize.set(4096, 4096);
     scene.add(light);
 
-    //
+    // Setup renderer
 
     renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -109,56 +108,25 @@ function init() {
         optionalFeatures: ["hand-tracking", "unbounded"]
     };
 
-    document.body.appendChild(XRButton.createButton(renderer, sessionInit));
+    document.body.appendChild(
+        XRButton.createButton(renderer, sessionInit)
+    );
 
-    // controllers
-
-    controller1 = renderer.xr.getController(0);
-    scene.add(controller1);
-
-    controller2 = renderer.xr.getController(1);
-    scene.add(controller2);
-
-    const controllerModelFactory = new XRControllerModelFactory();
-    const handModelFactory = new XRHandModelFactory();
-
-    // Hand 1
-    controllerGrip1 = renderer.xr.getControllerGrip(0);
-    controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
-    scene.add(controllerGrip1);
-
-    hand1 = renderer.xr.getHand(0);
-    hand1.addEventListener("pinchstart", event => onPinchStart(event, hand1));
-    hand1.addEventListener("pinchend", event => onPinchEnd(event, hand1));
-    hand1.addEventListener("move", event => onHandMove(event));
-    hand1.add(handModelFactory.createHandModel(hand1));
-    hand1.userData.grabbing = false;
+    [hand1, hand2] = createHands(renderer, scaling, scene, connection);
     scene.add(hand1);
-
-    // Hand 2
-    controllerGrip2 = renderer.xr.getControllerGrip(1);
-    controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
-    scene.add(controllerGrip2);
-
-    hand2 = renderer.xr.getHand(1);
-    hand2.addEventListener("pinchstart", event => onPinchStart(event, hand2));
-    hand2.addEventListener("pinchend", event => onPinchEnd(event, hand2));
-    hand1.addEventListener("move", event => onHandMove(event));
-    hand2.add(handModelFactory.createHandModel(hand2));
-    hand2.userData.grabbing = false;
     scene.add(hand2);
 
-    //
-
     window.addEventListener("resize", onWindowResize);
-
 
     const loader = new GLTFLoader();
     const modelInput = document.getElementById("modelInput");
     modelInput.onchange = () => {
         for (const uploadedFile of modelInput.files) {
             const url = URL.createObjectURL(uploadedFile);
-            addModel(url, undefined, undefined, undefined, loader, false, ()=>URL.revokeObjectURL(url));
+            addModel(
+                url, undefined, undefined, undefined,
+                loader, false, ()=>URL.revokeObjectURL(url)
+            );
         }
     };
 
@@ -306,78 +274,6 @@ function onWindowResize() {
 
     renderer.setSize(window.innerWidth, window.innerHeight);
 
-}
-
-//let boxHelper;
-function collideObject(indexTip) {
-    for (const object of models) {
-        const box = new THREE.Box3();
-        // scene.remove(boxHelper);
-        // boxHelper = new THREE.Box3Helper(box, 0xffff00);
-        // scene.add(boxHelper);
-        box.expandByObject(object, true);
-        if (box.containsPoint(indexTip.getWorldPosition(tmpVector))) {
-            return object;
-        }
-    }
-
-    return null;
-
-}
-
-function onPinchStart(event, hand) {
-    const otherHand = hand === hand1 ? hand2 : hand1;
-
-    const controller = event.target;
-    const indexTip = controller.joints["index-finger-tip"];
-    const object = collideObject(indexTip);
-
-    if (otherHand.userData.grabbing) {
-        if (object) {
-            const object2 = otherHand.userData.selected;
-            if (object === object2) {
-                scaling.active = true;
-                scaling.object = object;
-                scaling.initialScale = object.scale.x / object.scaleWhenAdded.x;
-                scaling.initialDistance = indexTip.position.distanceTo(otherHand.joints["index-finger-tip"].position);
-                return;
-            }
-        }
-    }
-    if (object) {
-        hand.userData.grabbing = true;
-        indexTip.attach(object);
-        controller.userData.selected = object;
-    }
-}
-
-
-function onPinchEnd(event, hand) {
-
-    const controller = event.target;
-
-    if (controller.userData.selected !== undefined) {
-
-        const object = controller.userData.selected;
-        scene.attach(object);
-
-        controller.userData.selected = undefined;
-        hand.userData.grabbing = false;
-    }
-    scaling.active = false;
-}
-
-
-function onHandMove(event) {
-    const controller = event.target;
-    const indexTip = controller.joints["index-finger-tip"];
-    const object = controller.userData.selected;
-
-    if (object !== undefined) {
-        scene.attach(object);
-        connection.updateObject(controller.userData.selected);
-        indexTip.attach(object);
-    }
 }
 
 function onClick(event) {
