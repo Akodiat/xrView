@@ -9,7 +9,7 @@ class Connection {
         this.animations = animations;
         this.animationMixers = animationMixers;
         this.log = log
-        this.peers = [];
+        this.peers = new Map();
 
         const peerId = localStorage.getItem("peerId");
 
@@ -31,15 +31,15 @@ class Connection {
             });
             conn.on("open", () => {
                 this.log(`Peer ${conn.peer} connected to us`);
-                this.peers.push(conn);
+                this.peers.set(conn.peer, conn);
 
                 this.sync([conn]);
             });
             conn.on("data", data => {
                 this.onData(data);
                 // Forward data to other peers
-                for (const conn2 of this.peers) {
-                    if (conn !== conn2) {
+                for (const [id, conn2] of this.peers) {
+                    if (conn.peer !== id) {
                         conn2.send(data);
                     }
                 }
@@ -76,7 +76,7 @@ class Connection {
         }
     }
 
-    updateObject(object, connections = this.peers) {
+    updateObject(object, connections = this.peers.values()) {
         const message = {
             type: "update",
             uuid: object.uuid,
@@ -90,7 +90,7 @@ class Connection {
         }
     }
 
-    sendObject(object, connections = this.peers) {
+    sendObject(object, connections = this.peers.values()) {
         const message = {
             type: "object",
             object: JSON.stringify(object.toJSON())
@@ -104,7 +104,7 @@ class Connection {
         }
     }
 
-    sync(connections = this.peers) {
+    sync(connections = this.peers.values()) {
         const serializedList = [];
         for (const c of this.models) {
             const serialized = {
@@ -143,7 +143,7 @@ class Connection {
         const conn = this.peer.connect(destPeerId, {reliable: true});
 
         // If we want two-way communication
-        this.peers.push(conn);
+        this.peers.set(conn.peer, conn);
 
         conn.on("open", () => {
             this.log(`Connected to peer id ${destPeerId}`);
@@ -152,8 +152,8 @@ class Connection {
             conn.on("data", data => {
                 this.onData(data);
                 // Forward data to other peers
-                for (const conn2 of this.peers) {
-                    if (conn !== conn2) {
+                for (const [id, conn2] of this.peers) {
+                    if (conn.peer !== id) {
                         conn2.send(data);
                     }
                 }
