@@ -6,6 +6,7 @@ import {TransformControls} from "three/addons/controls/TransformControls.js";
 import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
 import {Connection} from "./connectivity.js";
 import {createHands} from "./xrHands.js";
+import {onClick, onDblclick} from "./transformation.js";
 
 let canvas;
 let camera, scene, renderer;
@@ -15,12 +16,8 @@ let clock;
 const animationMixers = [];
 const animations = new Map();
 
-const raycaster = new THREE.Raycaster();
-
 let orbitControls;
 let transformControls;
-
-const transformModes =  ["translate", "rotate", "scale"];
 
 const scaling = {
     active: false,
@@ -52,17 +49,22 @@ function init() {
 
     // Setup transform controls (to translate, rotate, and scale models)
     transformControls = new TransformControls(camera, canvas);
-    transformControls.addEventListener("dragging-changed", event => {
-        orbitControls.enabled = ! event.value;
-    });
-    transformControls.addEventListener("objectChange", () => {
-        connection.updateObject(transformControls.object);
-    });
-    canvas.addEventListener("click", onClick);
-    canvas.addEventListener("dblclick", onDblclick)
-
     const transformGizmo = transformControls.getHelper();
     scene.add(transformGizmo);
+
+    // Setup transform-related events
+    transformControls.addEventListener("dragging-changed", event =>
+        orbitControls.enabled = ! event.value
+    );
+    transformControls.addEventListener("objectChange", () =>
+        connection.updateObject(transformControls.object)
+    );
+    canvas.addEventListener("click", event =>
+        onClick(event, transformControls, camera, models)
+    );
+    canvas.addEventListener("dblclick", () =>
+        onDblclick(transformControls)
+    );
 
     // Setup clock (for use in animation loop)
     clock = new THREE.Clock();
@@ -104,18 +106,6 @@ function init() {
     renderer.shadowMap.enabled = true;
     renderer.xr.enabled = true;
 
-    const sessionInit = {
-        optionalFeatures: ["hand-tracking", "unbounded"]
-    };
-
-    document.body.appendChild(
-        XRButton.createButton(renderer, sessionInit)
-    );
-
-    [hand1, hand2] = createHands(renderer, scaling, scene, connection);
-    scene.add(hand1);
-    scene.add(hand2);
-
     window.addEventListener("resize", onWindowResize);
 
     const loader = new GLTFLoader();
@@ -135,7 +125,7 @@ function init() {
             console.log(logText);
             document.getElementById("syncLog").innerHTML += `<p>${logText}</p>`;
         },
-        id=>{
+        id => {
             const href = `${window.location.href.split("?")[0]}?peerId=${id}`;
             console.log(href);
 
@@ -152,6 +142,18 @@ function init() {
             checkUrlParameters(loader);
         }
     );
+
+    const sessionInit = {
+        optionalFeatures: ["hand-tracking", "unbounded"]
+    };
+
+    document.body.appendChild(
+        XRButton.createButton(renderer, sessionInit)
+    );
+
+    [hand1, hand2] = createHands(renderer, scaling, scene, connection);
+    scene.add(hand1);
+    scene.add(hand2);
 
 
     window.addModel = addModel;
@@ -274,39 +276,6 @@ function onWindowResize() {
 
     renderer.setSize(window.innerWidth, window.innerHeight);
 
-}
-
-function onClick(event) {
-
-    const pointer = new THREE.Vector2(
-        (event.clientX / window.innerWidth) * 2 - 1,
-        - (event.clientY / window.innerHeight) * 2 + 1
-    );
-
-    raycaster.setFromCamera(pointer, camera);
-
-    const intersects = raycaster.intersectObjects(models);
-
-    if (intersects.length > 0) {
-        let object = intersects[0].object;
-        while (!models.includes(object) && object.parent) {
-            object = object.parent;
-        }
-        if (object !== transformControls.object) {
-            transformControls.attach(object);
-        }
-    } else {
-        if (!transformControls.dragging) {
-            transformControls.detach();
-        }
-    }
-}
-
-function onDblclick() {
-    if (transformControls.object) {
-        const modeIdx = transformModes.findIndex(m=>m === transformControls.getMode());
-        transformControls.setMode(transformModes[(modeIdx+1) % (transformModes.length)]);
-    }
 }
 
 

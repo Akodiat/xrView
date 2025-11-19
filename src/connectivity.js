@@ -55,10 +55,10 @@ class Connection {
 
             // Remove any previous scene data
             for (const m of this.models) {
-                this.scene.remove(m)
+                this.scene.remove(m);
             }
+            this.models.length = 0;
 
-            this.models = [];
             for (const d of data.sceneData) {
                 addDataToScene(this.scene, this.models, d.object, d.animation, this.animationMixers, this.animations);
             }

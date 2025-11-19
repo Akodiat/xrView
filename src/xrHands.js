@@ -6,6 +6,11 @@ const tmpVector = new Vector3();
 
 
 function createHands(renderer, scaling, scene, connection) {
+
+    // Controllers need to be initialised for the "move" event to be sent
+    renderer.xr.getController(0);
+    renderer.xr.getController(1);
+
     const hand1 = renderer.xr.getHand(0);
     const hand2 = renderer.xr.getHand(1);
 
@@ -22,7 +27,9 @@ function setupHand(hand, otherHand, scaling, scene, connection) {
     hand.addEventListener("pinchend", event => onPinchEnd(
         event, hand, scaling, scene
     ));
-    hand.addEventListener("move", event => onHandMove(event, scene, connection));
+    hand.addEventListener("move", event => onHandMove(
+        event, scene, connection
+    ));
     hand.add(handModelFactory.createHandModel(hand));
     hand.userData.grabbing = false;
     return hand;
