@@ -124,7 +124,7 @@ class Connection {
         }
     }
 
-    getModelsFromPeer(destPeerId) {
+    getModelsFromPeer(destPeerId, callback) {
         // We want to connect to a hosting client
         this.log(`Trying to connect to peer ${destPeerId}`);
 
@@ -133,7 +133,12 @@ class Connection {
         }
 
         this.peer.on("error", err=>{
-            this.log(err);
+            if (err.type === 'peer-unavailable') {
+                this.log(`Failed to connect to peer ${destPeerId}`);
+                callback();
+            } else {
+                this.log(err);
+            }
         })
         const conn = this.peer.connect(destPeerId, {reliable: true});
 
@@ -142,6 +147,7 @@ class Connection {
 
         conn.on("open", () => {
             this.log(`Connected to peer id ${destPeerId}`);
+            callback();
             // Receive messages
             conn.on("data", data => {
                 this.onData(data);
@@ -155,6 +161,7 @@ class Connection {
         }).on("error", err=>{
             this.log("Error:");
             this.log(err);
+            callback();
         })
     }
 }

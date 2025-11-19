@@ -139,6 +139,9 @@ function init() {
                 "click", () => navigator.clipboard.writeText(href)
             )
 
+            document.getElementById("syncInformation").hidden = false;
+            document.getElementById("syncProgress").hidden = true;
+
             checkUrlParameters(loader);
         }
     );
@@ -183,8 +186,15 @@ function checkUrlParameters(loader) {
         addModel(modelPaths[i], scales[i], positions[i], quaternions[i], loader, false);
     }
 
-    searchParams.getAll("peerId").forEach(peerId=>
-        connection.getModelsFromPeer(peerId)
+    searchParams.getAll("peerId").forEach(peerId=>{
+        const syncProgress = document.getElementById("syncProgress");
+        syncProgress.hidden = false;
+        syncProgress.innerHTML = `Connecting to peer ${peerId}...`
+
+        connection.getModelsFromPeer(peerId, ()=>{
+            syncProgress.hidden = true;
+        });
+    }
     );
 }
 

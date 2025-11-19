@@ -54,7 +54,7 @@
                     </p>
                 </article>
             </details>
-            <details>
+            <details open>
                 <summary role="button" class="outline secondary">Sync</summary>
                 <article>
 
@@ -63,23 +63,26 @@
                         connections. For example, this can be used to send data
                         between a computer and a VR headset.
                     </p>
-                    <p>
-                        To connect to this instance, open the link below
-                        on the other device. Instead of typing the whole id
-                        into a headset, it is advisable to use a link shortener
-                        or (if possible) to scan the QR code below.
-                    </p>
-                    <div class="grid">
-                        <div>
-                            <a href="" id="shareLink" target="_blank"></a>
+                    <p aria-busy="true" id="syncProgress">Trying to connect</p>
+                    <div id="syncInformation" hidden>
+                        <p>
+                            To connect to this instance, open the link below
+                            on the other device. Instead of typing the whole id
+                            into a headset, it is advisable to use a link shortener
+                            or (if possible) to scan the QR code below.
+                        </p>
+                        <div class="grid">
+                            <div>
+                                <a href="" id="shareLink" target="_blank"></a>
+                            </div>
+                            <div>
+                                <button id="copyLinkButton">Copy link</button>
+                            </div>
                         </div>
-                        <div>
-                            <button id="copyLinkButton">Copy link</button>
-                        </div>
+                        <p>
+                        </p>
+                        <div id="qrcode"></div>
                     </div>
-                    <p>
-                    </p>
-                    <div id="qrcode"></div>
                 </article>
                 <details>
                     <summary role="button" class="outline secondary">Sync log</summary>
